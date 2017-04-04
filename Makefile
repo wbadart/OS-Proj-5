@@ -26,5 +26,5 @@ link: $(OBJS)
 	$(CXX) $(CXX_FLAGS) $< -c -o $@
 
 clean:
-	rm -f *.o virtmem
+	rm -f *.o $(OUT)
 
