@@ -1,19 +1,29 @@
+##
+# Makefile
+#
+# Build instructions and unit test for proj 5.
+#
+# Badart, Cat
+# Badart, Will
+# created: APR 2017
+##
 
-virtmem: main.o page_table.o disk.o program.o
-	gcc main.o page_table.o disk.o program.o -o virtmem
+CXX		  = /usr/bin/gcc
+CXX_FLAGS = -Wall -ggdb
 
-main.o: src/main.c
-	gcc -Wall -g -c src/main.c -o main.o
+LD       = /usr/bin/gcc
+LD_FLAGS =
 
-page_table.o: src/page_table.c
-	gcc -Wall -g -c src/page_table.c -o page_table.o
+OUT  = virtmem
+OBJS = main.o page_table.o disk.o program.o
 
-disk.o: src/disk.c
-	gcc -Wall -g -c src/disk.c -o disk.o
+all: link
 
-program.o: src/program.c
-	gcc -Wall -g -c src/program.c -o program.o
+link: $(OBJS)
+	$(LD) $(LD_FLAGS) $(OBJS) -o $(OUT)
 
+%.o: src/%.c
+	$(CXX) $(CXX_FLAGS) $< -c -o $@
 
 clean:
 	rm -f *.o virtmem
