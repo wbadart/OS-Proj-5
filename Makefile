@@ -27,3 +27,4 @@ link: $(OBJS)
 
 clean:
 	rm -f *.o virtmem
+
