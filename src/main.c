@@ -15,9 +15,49 @@ how to use the page table and disk interfaces.
 #include <string.h>
 #include <errno.h>
 
+char *algorithm;
+int npages;
+
+typedef struct page_queue{
+    int *data;
+    size_t head;
+    size_t tail;
+} page_queue_t;
+//page_queue_t functions
+void push_back(page_queue_t *pq, int n){
+    pq->data[pq->tail++] = n;
+}
+int pop_front(page_queue_t *pq){
+    return pq->head <= pq->tail ? pq->data[pq->head++] : -1;
+}
+//global page_queue object
+page_queue_t pq = {malloc(4096*sizeof(int)), 0, 0};
+
 void page_fault_handler( struct page_table *pt, int page )
 {
-	printf("page fault on page #%d\n",page);
+    //desired page is not in physical memory
+    int open_frame;
+    for(open_frame = 0; open_frame < npages; open_frame++){
+        if(pt->page_bits[open_frame] == 0)
+            break;
+    }
+    //if physical memory is full use one of the algorithms to kick out a page
+    if(open_frame == npages){
+        int target_page;
+        if(strncmp(algorithm, "rand", 7) == 0){
+            target_page = rand() % npages;
+            printf("chose page %d\n", target_page);
+        }else if(strncmp(algorithm, "fifo", 7) == 0){
+            target_page = pop_front(&pq);
+            printf("chose page %d\n", target_page);
+        }else if(strncmp(algorithm, "custom", 7) == 0){
+
+        }else{
+            printf("algorithm not recognized\n");
+            exit(1);
+        }
+    }
+    printf("page fault on page #%d\n",page);
 	exit(1);
 }
 
@@ -28,16 +68,16 @@ int main( int argc, char *argv[] )
 		return 1;
 	}
 
-	int npages = atoi(argv[1]);
+	npages = atoi(argv[1]);
 	int nframes = atoi(argv[2]);
-	const char *program = argv[4];
+	algorithm = argv[3];
+    const char *program = argv[4];
 
 	struct disk *disk = disk_open("myvirtualdisk",npages);
 	if(!disk) {
 		fprintf(stderr,"couldn't create virtual disk: %s\n",strerror(errno));
 		return 1;
 	}
-
 
 	struct page_table *pt = page_table_create( npages, nframes, page_fault_handler );
 	if(!pt) {
