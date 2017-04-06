@@ -17,6 +17,17 @@ Make all of your changes to main.c instead.
 
 #include "page_table.h"
 
+struct page_table {
+	int fd;
+	char *virtmem;
+	int npages;
+	char *physmem;
+	int nframes;
+	int *page_mapping;
+	int *page_bits;
+	page_fault_handler_t handler;
+};
+
 struct page_table *the_page_table = 0;
 
 static void internal_fault_handler( int signum, siginfo_t *info, void *context )

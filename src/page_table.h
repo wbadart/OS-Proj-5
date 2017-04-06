@@ -11,17 +11,6 @@ struct page_table;
 
 typedef void (*page_fault_handler_t) ( struct page_table *pt, int page );
 
-struct page_table {
-	int fd;
-	char *virtmem;
-	int npages;
-	char *physmem;
-	int nframes;
-	int *page_mapping;
-	int *page_bits;
-	page_fault_handler_t handler;
-};
-
 /* Create a new page table, along with a corresponding virtual memory
 that is "npages" big and a physical memory that is "nframes" bit
  When a page fault occurs, the routine pointed to by "handler" will be called. */
