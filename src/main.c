@@ -15,11 +15,12 @@ how to use the page table and disk interfaces.
 #include <string.h>
 #include <errno.h>
 
+
 char *algorithm;
 int npages;         //pages represent program in virtual memory
 int nframes;        //frames = physical memory
 struct disk *disk;
-int frame_state[];  //keeps track of whether a frame is empty or not
+int *frame_state;   //keeps track of whether a frame is empty or not
 
 struct page_queue{
     int *data;
@@ -39,6 +40,8 @@ struct page_queue pq = {malloc(4096*sizeof(int)), 0, 0};
 
 void page_fault_handler( struct page_table *pt, int page )
 {
+    printf("page fault on page #%d\n",page);
+
     //desired page is not in physical memory
     int open_frame;
     for(open_frame = 0; open_frame < nframes; open_frame++){
@@ -101,6 +104,10 @@ int main( int argc, char *argv[] )
 	algorithm = argv[3];
     const char *program = argv[4];
 
+    frame_state = malloc(nframes * sizeof(int));
+    int i;
+    for(i = 0; i < nframes; i++) frame_state[i] = 0;
+
 	disk = disk_open("myvirtualdisk",npages);
 	if(!disk) {
 		fprintf(stderr,"couldn't create virtual disk: %s\n",strerror(errno));
@@ -113,8 +120,6 @@ int main( int argc, char *argv[] )
 		return 1;
 	}
 
-    int i;
-    for(i = 0; i < nframes; i++) frame_state[i] = 0;
 	char *virtmem = page_table_get_virtmem(pt);
 
 	char *physmem = page_table_get_physmem(pt);
@@ -133,6 +138,7 @@ int main( int argc, char *argv[] )
 		return 1;
 	}
 
+    free(frame_state);
 	page_table_delete(pt);
 	disk_close(disk);
 
