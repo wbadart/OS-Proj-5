@@ -1,9 +1,9 @@
 /*
-Main program for the virtual memory project.
-Make all of your modifications to this file.
-You may add or rearrange any code or data as you need.
-The header files page_table.h and disk.h explain
-how to use the page table and disk interfaces.
+   Main program for the virtual memory project.
+   Make all of your modifications to this file.
+   You may add or rearrange any code or data as you need.
+   The header files page_table.h and disk.h explain
+   how to use the page table and disk interfaces.
 */
 
 #include "page_table.h"
@@ -57,8 +57,8 @@ void page_fault_handler( struct page_table *pt, int page )
 
         else {
             fprintf( stderr
-                   , "ERR: algorithm '%s' not recognized\n"
-                   , algorithm );
+                    , "ERR: algorithm '%s' not recognized\n"
+                    , algorithm );
             exit(2);
         }
 
@@ -77,14 +77,14 @@ void page_fault_handler( struct page_table *pt, int page )
 
 int main( int argc, char *argv[] )
 {
-	if(argc!=5) {
-		printf("use: virtmem <npages> <nframes> <rand|fifo|lru|custom> <sort|scan|focus>\n");
-		return 1;
-	}
+    if(argc!=5) {
+        printf("use: virtmem <npages> <nframes> <rand|fifo|lru|custom> <sort|scan|focus>\n");
+        return 1;
+    }
 
-	npages = atoi(argv[1]);
-	nframes = atoi(argv[2]);
-	algorithm = argv[3];
+    npages = atoi(argv[1]);
+    nframes = atoi(argv[2]);
+    algorithm = argv[3];
     const char *program = argv[4];
 
     frame_states = malloc(nframes * sizeof(int));
@@ -92,39 +92,39 @@ int main( int argc, char *argv[] )
     int i;
     for(i = 0; i < nframes; i++) frame_states[i] = 0;
 
-	disk = disk_open("myvirtualdisk",npages);
-	if(!disk) {
-		fprintf(stderr,"couldn't create virtual disk: %s\n",strerror(errno));
-		return 1;
-	}
+    disk = disk_open("myvirtualdisk",npages);
+    if(!disk) {
+        fprintf(stderr,"couldn't create virtual disk: %s\n",strerror(errno));
+        return 1;
+    }
 
-	struct page_table *pt = page_table_create( npages, nframes, page_fault_handler );
-	if(!pt) {
-		fprintf(stderr,"couldn't create page table: %s\n",strerror(errno));
-		return 1;
-	}
+    struct page_table *pt = page_table_create( npages, nframes, page_fault_handler );
+    if(!pt) {
+        fprintf(stderr,"couldn't create page table: %s\n",strerror(errno));
+        return 1;
+    }
 
-	char *virtmem = page_table_get_virtmem(pt);
+    char *virtmem = page_table_get_virtmem(pt);
 
-	char *physmem = page_table_get_physmem(pt);
+    char *physmem = page_table_get_physmem(pt);
 
-	if(!strcmp(program,"sort")) {
-		sort_program(virtmem,npages*PAGE_SIZE);
+    if(!strcmp(program,"sort")) {
+        sort_program(virtmem,npages*PAGE_SIZE);
 
-	} else if(!strcmp(program,"scan")) {
-		scan_program(virtmem,npages*PAGE_SIZE);
+    } else if(!strcmp(program,"scan")) {
+        scan_program(virtmem,npages*PAGE_SIZE);
 
-	} else if(!strcmp(program,"focus")) {
-		focus_program(virtmem,npages*PAGE_SIZE);
+    } else if(!strcmp(program,"focus")) {
+        focus_program(virtmem,npages*PAGE_SIZE);
 
-	} else {
-		fprintf(stderr,"unknown program: %s\n",argv[3]);
-		return 1;
-	}
+    } else {
+        fprintf(stderr,"unknown program: %s\n",argv[3]);
+        return 1;
+    }
 
     free(frame_states);
-	page_table_delete(pt);
-	disk_close(disk);
+    page_table_delete(pt);
+    disk_close(disk);
 
-	return 0;
+    return 0;
 }
