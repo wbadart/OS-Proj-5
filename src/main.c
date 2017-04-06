@@ -19,8 +19,8 @@
 char *algorithm;
 int *frame_states
     , frame_queue_index
-    , npages
-    , nframes;
+    , npages        //pages represent program in virtual memory
+    , nframes;      //frames = physical memory
 
 struct disk *disk;
 
@@ -72,11 +72,25 @@ void page_fault_handler( struct page_table *pt, int page )
     frame_states[target_frame] = 1;
     frame_queue_index = target_frame;
 
-    /* exit(1); */
+    //once target page is selected, check if it has been written to
+    int *bits = 0;
+    int *frame = 0;
+    page_table_get_entry(pt, target_frame, frame, bits);
+    //just PROT_WRITE        = 010 = 2
+    //just PROT_READ         = 100 = 4
+    //PROT_READ & PROT_WRITE = 110 = 6
+    if(*bits == 2 || *bits == 6){
+        //write target page to disk before kicking it out
+        disk_write(disk, target_frame, page_table_get_physmem(pt) + *frame);
+    }
+    //set frame to new page that got read in
+    page_table_set_entry(pt, target_frame, *frame, PROT_READ);
+    frame_states[*frame] = 1;
 }
 
 int main( int argc, char *argv[] )
 {
+
     if(argc!=5) {
         printf("use: virtmem <npages> <nframes> <rand|fifo|lru|custom> <sort|scan|focus>\n");
         return 1;
@@ -89,6 +103,7 @@ int main( int argc, char *argv[] )
 
     frame_states = malloc(nframes * sizeof(int));
     frame_queue_index = 0;
+
     int i;
     for(i = 0; i < nframes; i++) frame_states[i] = 0;
 
@@ -105,7 +120,6 @@ int main( int argc, char *argv[] )
     }
 
     char *virtmem = page_table_get_virtmem(pt);
-
     char *physmem = page_table_get_physmem(pt);
 
     if(!strcmp(program,"sort")) {
@@ -118,7 +132,7 @@ int main( int argc, char *argv[] )
         focus_program(virtmem,npages*PAGE_SIZE);
 
     } else {
-        fprintf(stderr,"unknown program: %s\n",argv[3]);
+        fprintf(stderr,"ERR: unknown program: %s\n",argv[3]);
         return 1;
     }
 
