@@ -26,5 +26,5 @@ link: $(OBJS)
 	$(CXX) $(CXX_FLAGS) $< -c -o $@
 
 clean:
-	rm -f *.o $(OUT)
+	rm -f *.o $(OUT) myvirtualdisk
 
