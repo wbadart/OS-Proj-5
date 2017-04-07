@@ -55,20 +55,16 @@ void page_fault_handler( struct page_table *pt, int page )
 
     printf("page fault on page #%d\n",page);
 
-
-
     int frame, bits;
     page_table_get_entry(pt, page, &frame, &bits);
 
-    printf("INFO: read '%d' bits\n", bits);
+    //printf("INFO: read '%d' bits\n", bits);
 
     if(bits == 0){
-
         int available_frame = open_frame(frames, nframes);
         printf("INFO: got available_frame '%d'\n", available_frame);
 
         if(available_frame >= 0){
-
             disk_read( disk, page
                      , &(page_table_get_physmem(pt)[page * 4096]) );
 
@@ -79,7 +75,6 @@ void page_fault_handler( struct page_table *pt, int page )
             frames[available_frame].entry_order  = nreads++;
 
         } else {
-
             int eviction_target;
             if(strcmp(algorithm, "rand") == 0)
                 eviction_target = rand() % nframes;
@@ -112,7 +107,7 @@ void page_fault_handler( struct page_table *pt, int page )
 
             page_table_set_entry(pt, page, eviction_target, PROT_READ);
 
-            page_table_print(pt);
+            //page_table_print(pt);
 
             frames[eviction_target].is_available = 0;
             frames[eviction_target].page_index   = page;
@@ -125,9 +120,9 @@ void page_fault_handler( struct page_table *pt, int page )
         printf("ERR: Bits isn't 0 or PROT_READ\n");
         exit(1);
     }
-
-
+    printf("Page table at end:\n");
     page_table_print(pt);
+    printf("\n");
     /* if(nreads > 2) exit(1); */
     return;
 }
