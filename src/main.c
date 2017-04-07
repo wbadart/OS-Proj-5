@@ -15,7 +15,7 @@
 #include <string.h>
 #include <errno.h>
 
-char *algorithm;
+char *algorithm, *physmem;
 int *frame_states
     , frame_queue_index
     , npages        // pages represent program in virtual memory
@@ -52,29 +52,25 @@ struct disk *disk;
 
 void page_fault_handler( struct page_table *pt, int page )
 {
-
     printf("page fault on page #%d\n",page);
-
     int frame, bits;
     page_table_get_entry(pt, page, &frame, &bits);
-
-    //printf("INFO: read '%d' bits\n", bits);
-
+    //if page is not in table
     if(bits == 0){
         int available_frame = open_frame(frames, nframes);
         printf("INFO: got available_frame '%d'\n", available_frame);
-
+        //if there is an available frame
         if(available_frame >= 0){
-            disk_read( disk, page
-                     , &(page_table_get_physmem(pt)[page * 4096]) );
-
+            //read page into empty frame
+            disk_read( disk, page, &physmem[page * 4096] );
+            //update page table
             page_table_set_entry(pt, page, available_frame, PROT_READ);
 
             frames[available_frame].is_available = 0;
             frames[available_frame].page_index   = page;
             frames[available_frame].entry_order  = nreads++;
 
-        } else {
+        } else {//no availabe frame
             int eviction_target;
             if(strcmp(algorithm, "rand") == 0)
                 eviction_target = rand() % nframes;
@@ -87,25 +83,30 @@ void page_fault_handler( struct page_table *pt, int page )
                 exit(2);
             }
 
-            printf("INFO: picked eviction target '%d'\n", frames[eviction_target].page_index);
-
+            printf("INFO: picked eviction target '%d'\n", eviction_target);
+            //get info for page to evict
             int bits_evict, frame_evict;
             page_table_get_entry(pt, frames[eviction_target].page_index, &frame_evict, &bits_evict);
-            // just PROT_WRITE        = 010 = 2
-            // just PROT_READ         = 100 = 4
-            // PROT_READ & PROT_WRITE = 110 = 6
-            if(bits_evict == 2 || bits_evict == 6){
+            int page_evict = frames[eviction_target].page_index;
+            printf("going to evict page: %d\n", page_evict);
+            //page_table_print_entry(pt, page_evict);
+            //printf("bits value: %d\n", bits_evict);
+
+            if(bits_evict == 3){
                 //write target page to disk before kicking it out
-                disk_write( disk, frames[eviction_target].page_index
-                          , &(page_table_get_virtmem(pt)[eviction_target * 4096]));
+                disk_write( disk, page_evict, &physmem[eviction_target * 4096]);
+                //physmem or virtmem??
             }
 
-            page_table_set_entry(pt, frames[eviction_target].page_index, 0, 0);
 
-            disk_read( disk, page
-                     , &(page_table_get_physmem(pt)[eviction_target * 4096]) );
+            //read in new page
+            disk_read(disk, page, &physmem[eviction_target*4096]);
 
+            //set page table entry to new page
             page_table_set_entry(pt, page, eviction_target, PROT_READ);
+
+            //reset old page to 0
+            page_table_set_entry(pt, frames[eviction_target].page_index, 0, 0);
 
             //page_table_print(pt);
 
@@ -159,7 +160,7 @@ int main( int argc, char *argv[] )
     }
 
     char *virtmem = page_table_get_virtmem(pt);
-    /* char *physmem = page_table_get_physmem(pt); */
+    physmem = page_table_get_physmem(pt);
 
     if(!strcmp(program,"sort")) {
         sort_program(virtmem,npages*PAGE_SIZE);
