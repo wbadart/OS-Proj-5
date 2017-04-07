@@ -130,69 +130,6 @@ void page_fault_handler( struct page_table *pt, int page )
     page_table_print(pt);
     /* if(nreads > 2) exit(1); */
     return;
-
-
-
-    // Determine if there's an empty frame
-    int target_frame;
-    for(target_frame = frame_queue_index + 1;
-            target_frame != frame_queue_index;
-            target_frame = (target_frame + 1) % nframes)
-        if(!frame_states[target_frame]) break;
-
-    // If i != frame_queue_index, i points to an empty frame since
-    // it wrapped around the whole queue without finding empty frame
-    // If i doesn't point to an empty frame, evict
-    if(target_frame == frame_queue_index){
-
-        int eviction_target;
-
-        // `rand` just picks a random frame
-        if(strncmp(algorithm, "rand", 7) == 0)
-            eviction_target = rand() % nframes;
-
-        // `fifo` evicts the earliest-inserted frame, which
-        // is tracked by frame_queue_index
-        else if(strncmp(algorithm, "fifo", 7) == 0)
-            eviction_target = frame_queue_index;
-
-        // `custom` does some cool stuff...
-        else if(strncmp(algorithm, "custom", 7) == 0)
-            eviction_target = rand() % nframes;
-
-        else {
-            fprintf( stderr
-                    , "ERR: algorithm '%s' not recognized\n"
-                    , algorithm );
-            exit(2);
-        }
-
-        // Set target frame to eviction_target
-        target_frame = eviction_target;
-
-        //once target page is selected, check if it has been written to
-        int bits = 0;
-        int frame = 0;
-        page_table_get_entry(pt, page, &frame, &bits);
-        //just PROT_WRITE        = 010 = 2
-        //just PROT_READ         = 100 = 4
-        //PROT_READ & PROT_WRITE = 110 = 6
-        if(bits == 2 || bits == 6){
-            //write target page to disk before kicking it out
-            disk_write(disk, page, &(page_table_get_virtmem(pt)[page * 4096]));
-        }
-        //set frame to new page that got read in
-        page_table_set_entry(pt, page, frame, PROT_READ);
-        frame_states[frame] = 1;
-
-    }
-
-    // read something from disk into frame
-    disk_read(disk, page, page_table_get_physmem(pt) + target_frame);
-    page_table_set_entry(pt, page, target_frame, PROT_READ);
-    frame_states[target_frame] = 1;
-    frame_queue_index = target_frame;
-
 }
 
 int main( int argc, char *argv[] )
