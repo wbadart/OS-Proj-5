@@ -19,8 +19,8 @@
 char *algorithm;
 int *frame_states
     , frame_queue_index
-    , npages        //pages represent program in virtual memory
-    , nframes;      //frames = physical memory
+    , npages        // pages represent program in virtual memory
+    , nframes;      // frames = physical memory
 
 struct disk *disk;
 
