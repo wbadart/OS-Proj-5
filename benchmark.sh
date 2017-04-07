@@ -17,7 +17,7 @@
 
 PROGS="focus scan sort"
 ALGS="rand filo custom"
-N_FRAMES=`seq 3 100`
+N_FRAMES=`seq 3 10 100`
 N_PAGES=100
 
 test -e ./virtmem || make > /dev/null 2> /dev/null
