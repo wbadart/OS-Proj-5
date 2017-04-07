@@ -15,6 +15,13 @@
 #include <string.h>
 #include <errno.h>
 
+char *algorithm;
+int *frame_states
+    , frame_queue_index
+    , npages        // pages represent program in virtual memory
+    , nframes       // frames = physical memory
+    , nreads;
+
 typedef struct frame{
     int is_available;
     int is_dirty;
@@ -29,14 +36,17 @@ int open_frame(frame_t *fs, int nframes){
     return -1;
 }
 
-frame_t *frames;
+int oldest_frame(frame_t *fs, int nframes){
+    int i, min = nreads, min_index;
+    for(i = 0; i < nframes; i++)
+        if(fs[i].entry_order < min){
+            min = fs[i].entry_order;
+            min_index = i;
+        }
+    return min_index;
+}
 
-char *algorithm;
-int *frame_states
-    , frame_queue_index
-    , npages        // pages represent program in virtual memory
-    , nframes       // frames = physical memory
-    , nreads;
+frame_t *frames;
 
 struct disk *disk;
 
@@ -76,7 +86,7 @@ void page_fault_handler( struct page_table *pt, int page )
             if(strcmp(algorithm, "rand") == 0)
                 eviction_target = rand() % nframes;
             else if(strcmp(algorithm, "fifo") == 0)
-                eviction_target = rand() % nframes;
+                eviction_target = oldest_frame(frames, nframes);
             else if(strcmp(algorithm, "custom") == 0)
                 eviction_target = rand() % nframes;
             else{
