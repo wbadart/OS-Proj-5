@@ -15,18 +15,61 @@
 #include <string.h>
 #include <errno.h>
 
+typedef struct frame{
+    int is_available;
+    int is_dirty;
+    int entry_order;
+    int page_index;
+} frame_t;
+
+int open_frame(frame_t *fs, int nframes){
+    int i;
+    for(i = 0; i < nframes; i++)
+        if((fs + i)->is_available) return i;
+    return -1;
+}
+
+frame_t *frames;
 
 char *algorithm;
 int *frame_states
     , frame_queue_index
     , npages        // pages represent program in virtual memory
-    , nframes;      // frames = physical memory
+    , nframes       // frames = physical memory
+    , nreads;
 
 struct disk *disk;
 
 void page_fault_handler( struct page_table *pt, int page )
 {
+
     printf("page fault on page #%d\n",page);
+
+
+
+    /* int frame, bits; */
+    /* page_table_get_entry(pt, page, &frame, &bits); */
+
+    int available_frame = open_frame(frames, nframes);
+    printf("INFO: got available_frame '%d'\n", available_frame);
+    if(available_frame >= 0){
+
+        disk_read( disk, page
+                 , &(page_table_get_physmem(pt)[page * 4096]) );
+
+        page_table_set_entry(pt, page, available_frame, PROT_READ);
+
+        page_table_print(pt);
+
+        frames[available_frame].is_available = 0;
+        frames[available_frame].page_index   = page;
+        frames[available_frame].entry_order  = nreads++;
+    }
+
+    if(nreads > 2) exit(1);
+    return;
+
+
 
     // Determine if there's an empty frame
     int target_frame;
@@ -68,16 +111,16 @@ void page_fault_handler( struct page_table *pt, int page )
         //once target page is selected, check if it has been written to
         int bits = 0;
         int frame = 0;
-        page_table_get_entry(pt, target_frame, &frame, &bits);
+        page_table_get_entry(pt, page, &frame, &bits);
         //just PROT_WRITE        = 010 = 2
         //just PROT_READ         = 100 = 4
         //PROT_READ & PROT_WRITE = 110 = 6
         if(bits == 2 || bits == 6){
             //write target page to disk before kicking it out
-            disk_write(disk, target_frame, page_table_get_physmem(pt) + frame);
+            disk_write(disk, page, page_table_get_virtmem(pt));
         }
         //set frame to new page that got read in
-        page_table_set_entry(pt, target_frame, frame, PROT_READ);
+        page_table_set_entry(pt, page, frame, PROT_READ);
         frame_states[frame] = 1;
 
     }
@@ -102,12 +145,12 @@ int main( int argc, char *argv[] )
     nframes = atoi(argv[2]);
     algorithm = argv[3];
     const char *program = argv[4];
+    nreads = 0;
 
-    frame_states = malloc(nframes * sizeof(int));
-    frame_queue_index = 0;
-
+    frames = malloc(nframes * sizeof(frame_t));
     int i;
-    for(i = 0; i < nframes; i++) frame_states[i] = 0;
+    for(i = 0; i < nframes; i++)
+        frames[i].is_available = 1;
 
     disk = disk_open("myvirtualdisk",npages);
     if(!disk) {
@@ -122,7 +165,7 @@ int main( int argc, char *argv[] )
     }
 
     char *virtmem = page_table_get_virtmem(pt);
-    char *physmem = page_table_get_physmem(pt);
+    /* char *physmem = page_table_get_physmem(pt); */
 
     if(!strcmp(program,"sort")) {
         sort_program(virtmem,npages*PAGE_SIZE);
