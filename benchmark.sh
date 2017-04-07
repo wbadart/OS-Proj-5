@@ -26,8 +26,7 @@ for prog in $PROGS; do
     for alg in $ALGS; do
         for n_frames in $N_FRAMES; do
             printf "$N_PAGES,$n_frames,$alg,$prog,"
-            ./virtmem $N_PAGES $n_frames $alg $prog 2> /dev/null |
-                grep "^RESULT" | tail -n 1
+            ./virtmem $N_PAGES $n_frames $alg $prog 2> /dev/null | grep "RESULT" | tail -n 1
         done
     done
 done

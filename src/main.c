@@ -27,7 +27,6 @@ int *frame_states
 
 typedef struct frame{
     int is_available;
-    int is_dirty;
     int entry_order;
     int page_index;
     int n_accesses;
@@ -147,8 +146,12 @@ int main(int argc, char *argv[]){
 
     frames = malloc(nframes * sizeof(frame_t));
     int i;
-    for(i = 0; i < nframes; i++)
+    for(i = 0; i < nframes; i++){
         frames[i].is_available = 1;
+        frames[i].entry_order = 0;
+        frames[i].page_index = 0;
+        frames[i].n_accesses = 0;
+    }
 
     disk = disk_open("myvirtualdisk",npages);
     if(!disk) {
