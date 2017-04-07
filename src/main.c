@@ -47,26 +47,76 @@ void page_fault_handler( struct page_table *pt, int page )
 
 
 
-    /* int frame, bits; */
-    /* page_table_get_entry(pt, page, &frame, &bits); */
+    int frame, bits;
+    page_table_get_entry(pt, page, &frame, &bits);
 
-    int available_frame = open_frame(frames, nframes);
-    printf("INFO: got available_frame '%d'\n", available_frame);
-    if(available_frame >= 0){
+    printf("INFO: read '%d' bits\n", bits);
 
-        disk_read( disk, page
-                 , &(page_table_get_physmem(pt)[page * 4096]) );
+    if(bits == 0){
 
-        page_table_set_entry(pt, page, available_frame, PROT_READ);
+        int available_frame = open_frame(frames, nframes);
+        printf("INFO: got available_frame '%d'\n", available_frame);
 
-        page_table_print(pt);
+        if(available_frame >= 0){
 
-        frames[available_frame].is_available = 0;
-        frames[available_frame].page_index   = page;
-        frames[available_frame].entry_order  = nreads++;
+            disk_read( disk, page
+                     , &(page_table_get_physmem(pt)[page * 4096]) );
+
+            page_table_set_entry(pt, page, available_frame, PROT_READ);
+
+            page_table_print(pt);
+
+            frames[available_frame].is_available = 0;
+            frames[available_frame].page_index   = page;
+            frames[available_frame].entry_order  = nreads++;
+
+        } else {
+
+            int eviction_target;
+            if(strcmp(algorithm, "rand") == 0)
+                eviction_target = rand() % nframes;
+            else if(strcmp(algorithm, "fifo") == 0)
+                eviction_target = rand() % nframes;
+            else if(strcmp(algorithm, "custom") == 0)
+                eviction_target = rand() % nframes;
+            else{
+                printf("ERR: Algorithm '%s' not recognized\n", algorithm);
+                exit(2);
+            }
+
+            printf("INFO: picked eviction target '%d'\n", eviction_target);
+
+            int bits_evict, frame_evict;
+            page_table_get_entry(pt, page, &frame_evict, &bits_evict);
+            //just PROT_WRITE        = 010 = 2
+            //just PROT_READ         = 100 = 4
+            //PROT_READ & PROT_WRITE = 110 = 6
+            if(bits == 2 || bits == 6){
+                //write target page to disk before kicking it out
+                disk_write( disk, page
+                          , &(page_table_get_virtmem(pt)[eviction_target * 4096]));
+            }
+
+            disk_read( disk, page
+                     , &(page_table_get_physmem(pt)[page * 4096]) );
+
+            page_table_set_entry(pt, page, eviction_target, PROT_READ);
+
+            page_table_print(pt);
+
+            frames[available_frame].is_available = 0;
+            frames[available_frame].page_index   = page;
+            frames[available_frame].entry_order  = nreads++;
+
+        }
+    } else if(bits == PROT_READ){
+        page_table_set_entry(pt, page, frame, PROT_READ|PROT_WRITE);
+    } else {
+        printf("ERR: Bits isn't 0 or PROT_READ\n");
+        exit(1);
     }
 
-    if(nreads > 2) exit(1);
+    /* if(nreads > 2) exit(1); */
     return;
 
 
@@ -117,7 +167,7 @@ void page_fault_handler( struct page_table *pt, int page )
         //PROT_READ & PROT_WRITE = 110 = 6
         if(bits == 2 || bits == 6){
             //write target page to disk before kicking it out
-            disk_write(disk, page, page_table_get_virtmem(pt));
+            disk_write(disk, page, &(page_table_get_virtmem(pt)[page * 4096]));
         }
         //set frame to new page that got read in
         page_table_set_entry(pt, page, frame, PROT_READ);
