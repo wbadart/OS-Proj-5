@@ -74,8 +74,6 @@ void page_fault_handler( struct page_table *pt, int page )
 
             page_table_set_entry(pt, page, available_frame, PROT_READ);
 
-            page_table_print(pt);
-
             frames[available_frame].is_available = 0;
             frames[available_frame].page_index   = page;
             frames[available_frame].entry_order  = nreads++;
@@ -98,14 +96,16 @@ void page_fault_handler( struct page_table *pt, int page )
 
             int bits_evict, frame_evict;
             page_table_get_entry(pt, frames[eviction_target].page_index, &frame_evict, &bits_evict);
-            //just PROT_WRITE        = 010 = 2
-            //just PROT_READ         = 100 = 4
-            //PROT_READ & PROT_WRITE = 110 = 6
+            // just PROT_WRITE        = 010 = 2
+            // just PROT_READ         = 100 = 4
+            // PROT_READ & PROT_WRITE = 110 = 6
             if(bits_evict == 2 || bits_evict == 6){
                 //write target page to disk before kicking it out
                 disk_write( disk, frames[eviction_target].page_index
                           , &(page_table_get_virtmem(pt)[eviction_target * 4096]));
             }
+
+            page_table_set_entry(pt, frames[eviction_target].page_index, 0, 0);
 
             disk_read( disk, page
                      , &(page_table_get_physmem(pt)[eviction_target * 4096]) );
@@ -126,6 +126,8 @@ void page_fault_handler( struct page_table *pt, int page )
         exit(1);
     }
 
+
+    page_table_print(pt);
     /* if(nreads > 2) exit(1); */
     return;
 
