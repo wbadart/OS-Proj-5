@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 
 char *algorithm, *physmem;
 int *frame_states
@@ -29,6 +30,7 @@ typedef struct frame{
     int is_dirty;
     int entry_order;
     int page_index;
+    int n_accesses;
 } frame_t;
 
 frame_t *frames;
@@ -51,6 +53,16 @@ int oldest_frame(frame_t *fs, int nframes){
     return min_index;
 }
 
+int custom(frame_t *fs, int nframes){
+    int i, min_accesses = INT_MAX, min_index;
+    for(i = 0; i < nframes; i++)
+        if(fs[i].n_accesses < min_accesses){
+            min_accesses = fs[i].n_accesses;
+            min_index = i;
+        }
+    return min_index;
+}
+
 void page_fault_handler( struct page_table *pt, int page )
 {
     fprintf(stderr, "INFO: page fault on page #%d\n", page);
@@ -66,6 +78,7 @@ void page_fault_handler( struct page_table *pt, int page )
             disk_read( disk, page, &physmem[page * 4096] );
             //update page table
             page_table_set_entry(pt, page, available_frame, PROT_READ);
+            frames[available_frame].n_accesses++;
 
             frames[available_frame].is_available = 0;
             frames[available_frame].page_index   = page;
@@ -78,7 +91,7 @@ void page_fault_handler( struct page_table *pt, int page )
             else if(strcmp(algorithm, "fifo") == 0)
                 eviction_target = oldest_frame(frames, nframes);
             else if(strcmp(algorithm, "custom") == 0)
-                eviction_target = rand() % nframes;
+                eviction_target = custom(frames, nframes);
 
             //get info for page to evict
             int bits_evict, frame_evict;
@@ -99,6 +112,7 @@ void page_fault_handler( struct page_table *pt, int page )
 
             //set page table entry to new page
             page_table_set_entry(pt, page, eviction_target, PROT_READ);
+            frames[eviction_target].n_accesses++;
 
             //reset old page to 0
             page_table_set_entry(pt, frames[eviction_target].page_index, 0, 0);

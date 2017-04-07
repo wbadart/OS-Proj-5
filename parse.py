@@ -21,8 +21,8 @@ def parse_line(line):
 
 def main():
     data = (parse_line(l.rstrip()) for l in open('results.csv', 'r'))
+    print(next(data))
 
-    print next(data)
-
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+    main()
 
