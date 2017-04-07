@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/afs/nd.edu/user15/pbui/pub/anaconda-2.3.0/bin/python
 
 '''
 ' parse.py
@@ -11,18 +11,29 @@
 ' created: APR 2017
 '''
 
+import os
 import sys
+import matplotlib as plt
 
-def parse_line(line):
-    params, data = line.split(',')[:4], line.split(':')[1:]
-    params[0], params[1] = int(params[0]), int(params[1])
-    data[1], data[3], data[5] = int(data[1]), int(data[3]), int(data[5])
-    return params, data
+from subprocess import check_output
+
+def virtmem(npages, nframes, alg, prog):
+    return check_output(['./virtmem', str(npages), str(nframes), alg, prog]
+                        , stderr=open(os.devnull, 'w') ).split('\n')[-3]
+
+def parse_result(line):
+    return tuple(map(int, line.split(':')[1:][1::2]))
 
 def main():
-    data = (parse_line(l.rstrip()) for l in open('results.csv', 'r'))
-    print(next(data))
+    PROGS, ALGS, N_FRAMES = ['focus', 'scan', 'sort']\
+                          , ['rand', 'filo', 'custom']\
+                          , xrange(10, 100, 10)
+    data = []
+    for p in PROGS:
+        for a in ALGS:
+            for n in N_FRAMES:
+                data.append(parse_result(virtmem(100, n, a, p)))
+    print data[12]
 
-if __name__ == '__main__':
-    main()
+if __name__ == '__main__': main()
 
