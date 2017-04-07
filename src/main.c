@@ -20,6 +20,8 @@ int *frame_states
     , frame_queue_index
     , npages        // pages represent program in virtual memory
     , nframes       // frames = physical memory
+    , nfaults
+    , nwrites
     , nreads;
 
 typedef struct frame{
@@ -28,6 +30,9 @@ typedef struct frame{
     int entry_order;
     int page_index;
 } frame_t;
+
+frame_t *frames;
+struct disk *disk;
 
 int open_frame(frame_t *fs, int nframes){
     int i;
@@ -46,14 +51,9 @@ int oldest_frame(frame_t *fs, int nframes){
     return min_index;
 }
 
-frame_t *frames;
+void page_fault_handler(struct page_table *pt, int page){
 
-struct disk *disk;
-
-void page_fault_handler( struct page_table *pt, int page )
-{
-
-    printf("page fault on page #%d\n",page);
+    fprintf(stderr, "INFO: page fault on page #%d\n", page);
 
     int frame, bits;
     page_table_get_entry(pt, page, &frame, &bits);
@@ -62,7 +62,7 @@ void page_fault_handler( struct page_table *pt, int page )
 
     if(bits == 0){
         int available_frame = open_frame(frames, nframes);
-        printf("INFO: got available_frame '%d'\n", available_frame);
+        fprintf(stderr, "INFO: got available_frame '%d'\n", available_frame);
 
         if(available_frame >= 0){
             disk_read( disk, page
@@ -75,6 +75,7 @@ void page_fault_handler( struct page_table *pt, int page )
             frames[available_frame].entry_order  = nreads++;
 
         } else {
+
             int eviction_target;
             if(strcmp(algorithm, "rand") == 0)
                 eviction_target = rand() % nframes;
@@ -82,22 +83,21 @@ void page_fault_handler( struct page_table *pt, int page )
                 eviction_target = oldest_frame(frames, nframes);
             else if(strcmp(algorithm, "custom") == 0)
                 eviction_target = rand() % nframes;
-            else{
-                printf("ERR: Algorithm '%s' not recognized\n", algorithm);
-                exit(2);
-            }
 
-            printf("INFO: picked eviction target '%d'\n", frames[eviction_target].page_index);
+            fprintf(stderr, "INFO: picked eviction target '%d'\n"
+                          , frames[eviction_target].page_index );
 
             int bits_evict, frame_evict;
-            page_table_get_entry(pt, frames[eviction_target].page_index, &frame_evict, &bits_evict);
-            // just PROT_WRITE        = 010 = 2
-            // just PROT_READ         = 100 = 4
-            // PROT_READ & PROT_WRITE = 110 = 6
+            page_table_get_entry(pt, frames[eviction_target].page_index
+                                   , &frame_evict, &bits_evict );
+
+            // If write bit is set
+            /* if(bits_evict & (PROT_WRITE|PROT_WRITE)) */
             if(bits_evict == 2 || bits_evict == 6){
                 //write target page to disk before kicking it out
                 disk_write( disk, frames[eviction_target].page_index
                           , &(page_table_get_virtmem(pt)[eviction_target * 4096]));
+                nwrites++;
             }
 
             page_table_set_entry(pt, frames[eviction_target].page_index, 0, 0);
@@ -114,23 +114,17 @@ void page_fault_handler( struct page_table *pt, int page )
             frames[eviction_target].entry_order  = nreads++;
 
         }
-    } else if(bits == PROT_READ){
+
+    } else if(bits == PROT_READ)
         page_table_set_entry(pt, page, frame, PROT_READ|PROT_WRITE);
-    } else {
-        printf("ERR: Bits isn't 0 or PROT_READ\n");
-        exit(1);
-    }
-    printf("Page table at end:\n");
-    page_table_print(pt);
-    printf("\n");
-    /* if(nreads > 2) exit(1); */
-    return;
+    else printf("ERR: Bits isn't 0 or PROT_READ\n");
+
+    printf("RESULT:nfaults:%d:nreads:%d:nwrites:%d\n", ++nfaults, nreads, nwrites);
 }
 
-int main( int argc, char *argv[] )
-{
+int main(int argc, char *argv[]){
 
-    if(argc!=5) {
+    if(argc != 5) {
         printf("use: virtmem <npages> <nframes> <rand|fifo|lru|custom> <sort|scan|focus>\n");
         return 1;
     }
@@ -139,7 +133,7 @@ int main( int argc, char *argv[] )
     nframes = atoi(argv[2]);
     algorithm = argv[3];
     const char *program = argv[4];
-    nreads = 0;
+    nreads = 0; nwrites = 0;
 
     frames = malloc(nframes * sizeof(frame_t));
     int i;
